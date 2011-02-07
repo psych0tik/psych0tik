@@ -1,0 +1,240 @@
+" .vimrc
+" $Id: .vimrc 601 2011-02-02 22:26:52Z richo $
+" Rich Healey '10
+" This file depends upon a few other bits and pieces. If you're using it and
+" it's throwing errors, commend out the blocks that are chucken em.
+"
+" You will want the following:
+"  - python_fn.vim
+"  http://www.vim.org/scripts/script.php?script_id=30
+"
+"  - brainfuck.vim - If you're silly enough to use brainfuck :)
+"  http://www.vim.org/scripts/script.php?script_id=716
+"
+"
+" vi compat is nice, but I'm running vim, and like shiny stuffs
+set nocompatible
+
+" Convert all tab chars to 4spaces
+" This is mainly for python, but I oft use it for haxing together mangled PHP
+function ReTab()
+    %s/\t/    /g
+endfunction
+
+" Strangely this doesn't work properly unless declared early
+filetype on
+filetype indent on
+filetype plugin on
+
+set wildmode=longest,list,full
+set wildmenu
+
+" Show what we've changed in this set of edits
+" I stole this from someone, I forget who. Probably freenode/#vim
+" If it's you let me know.
+command DiffOrig vert new | set bt=nofile | r # | 0d_ | diffthis
+	 	\ | wincmd p | diffthis
+
+" Highlight lines longer than 80 chars.
+" I just flick this on if I'm writing docs or emails, generally.
+command LongL call LONGL()
+function LONGL()
+    if !exists("b:long")
+        let b:long="matching"
+        let w:m1=matchadd('Search', '\%<81v.\%>77v', -1)
+        let w:m2=matchadd('ErrorMsg', '\%>80v.\+', -1)
+    else
+        unlet b:long
+        :call matchdelete(w:m1)
+        :call matchdelete(w:m2)
+    endif
+endfunction
+
+" We oft want to write with sudo
+" Actually, I never want to do that but this is a nice place to keep it.
+"
+command W w !sudo tee % > /dev/null
+
+" Set some sensible defaults
+set nohlsearch
+" There is no feature in the world that I hate as much as hlsearch
+set foldmethod=marker
+syntax on
+set ai
+"set nu
+" Python primarily
+set ts=4
+set et
+set sw=4
+" Autoindent is nice, but if it does something you don't expect, not being
+" able to backspace it back to sanity is frustrating, even if <ESC>I is
+" quicker.
+set backspace=indent
+set ffs=unix,dos
+
+" Hax to let us have multiple highlights within a single file
+" http://vim.wikia.com/wiki/Different_syntax_highlighting_within_regions_of_a_file
+" This took me so long to find and get working properly.
+function! TextEnableCodeSnip(filetype,start,end,textSnipHl) abort "{{{
+  let ft=toupper(a:filetype)
+  let group='textGroup'.ft
+  if exists('b:current_syntax')
+    let s:current_syntax=b:current_syntax
+    " Remove current syntax definition, as some syntax files (e.g. cpp.vim)
+    " do nothing if b:current_syntax is defined.
+    unlet b:current_syntax
+  endif
+  execute 'syntax include @'.group.' syntax/'.a:filetype.'.vim'
+  try
+    execute 'syntax include @'.group.' after/syntax/'.a:filetype.'.vim'
+  catch
+  endtry
+  if exists('s:current_syntax')
+    let b:current_syntax=s:current_syntax
+  else
+    unlet b:current_syntax
+  endif
+  execute 'syntax region textSnip'.ft.'
+  \ matchgroup='.a:textSnipHl.'
+  \ start="'.a:start.'" end="'.a:end.'"
+  \ contains=@'.group.'
+  \ containedin=ALL'
+  " XXX ^^ This is needed for PHP, everything in a <?PHP ... ?> block is part
+  " of a highlighting group, which breaks the rule as per vanilla in the wiki.
+endfunction "}}}
+
+" This is probably ready to go now we've left CT
+"{{{ CT Stuffs
+" Hax for editing the vb formula files I used.
+autocmd BufRead *.form set ft=vb
+autocmd BufRead *.vb set ft=vb
+"}}}
+
+"Python Trickery {{{
+" This is a hack for sql files that define plpython functions
+" .plpy is probably a better extension now I think of it...
+" I wrote a lot of functions that lived in a PostgreSQL database in python
+" This was a rule to let the scripts look half decent on screen.
+function CONFIGPYSQL()
+    set ft=sql
+    call TextEnableCodeSnip('python', '#@<py', '#@</py', 'SpecialComment' )
+    command! Mtags call PYTHONTAGS()
+endfunction
+function PYTHONTAGS()
+    silent !ptags
+    redraw!
+endfunction
+autocmd BufRead *.pysql call CONFIGPYSQL()
+autocmd BufRead *.plpy call CONFIGPYSQL()
+"
+function CONFIGPYTHON()
+    call TextEnableCodeSnip('sql', '@begin=sql@', '@end=sql@', 'SpecialComment' )
+    " Fix dodgy python highlighting
+    " I believe this is now fixed.
+    let python_highlight_numbers = 1
+    let python_highlight_builtins = 1
+    let python_highlight_exceptions = 1
+    " Courtesy of
+    " http://dancingpenguinsoflight.com/2009/02/python-and-vim-make-your-own-ide/
+    " Execute file being edited with <Shift> + e:
+    map <buffer> <C-e> :w<CR>:!/usr/bin/env python % <CR>
+    " TODO Change this to write out to a temp buffer
+    command! Mtags call PYTHONTAGS()
+endfunction
+au BufRead,BufNewFile *.py{c,w,o,x} set ft=python
+au FileType python call CONFIGPYTHON()
+" This seems to work now
+"autocmd BufRead *.py set smartindent cinwords=if,elif,else,for,while,try,except,finally,def,class
+" I used this for a while, I don't any more.
+"}}}
+
+"PHP Trickery {{{
+" Let's face it, PHP contains SQL. End of story
+" This lets my SQL highlight nicely. It would be nice to have a less obtrusive
+" marker though.
+function PHPTAGS()
+    silent !phptags
+    redraw!
+endfunction
+function CONFIGPHP()
+    call TextEnableCodeSnip('sql', '@begin=sql@', '@end=sql@', 'SpecialComment' )
+    command! Mtags call PHPTAGS()
+endfunction
+au FileType php call CONFIGPHP()
+"}}}
+
+" HAML hax {{{
+" Haml likes indents of 2 spaces, just like our ruby.
+au FileType haml call CONFIGRUBY()
+" }}}
+
+" HTML hax {{{
+" Html tends to be heavily indented..
+function CONFIGHTML()
+    set ts=2
+    set sw=2
+    let g:html_syntax_folding=1
+    setlocal foldmethod=syntax
+endfunction
+au FileType {,x}html call CONFIGHTML()
+" }}}
+
+" Brainfuck hax {{{
+" Brainfuck is excellent. Winrar!
+au BufNewFile,BufRead *.bf set filetype=brainfuck
+" }}}
+
+" Ruby Hax {{{
+" Prawn files are includes for a pdf rendering library
+au BufNewFile,BufRead *.prawn set filetype=ruby
+
+" This is specific to rails apps, but I will not bind it to a particular
+" filetype
+function CONFIGRUBY()
+    set ts=2
+    set sw=2
+    command! Mtags call RUBYTAGS()
+endfunction
+function RUBYTAGS()
+    silent !rbtags
+    redraw!
+endfunction
+function RESTARTRAILSAPP()
+    w
+    silent !touch tmp/restart.txt
+    redraw!
+endfunction
+au FileType ruby call CONFIGRUBY()
+au BufNewFile,BufRead *.erb call CONFIGRUBY()
+command Rrails call RESTARTRAILSAPP()
+command RR call RESTARTRAILSAPP()
+
+" }}}
+
+" Makefile Hax {{{
+"
+" In Makefile, automatically convert eight spaces at the beginning
+" of line to tab, as you type (or paste).
+au FileType make :inoremap <buffer><silent><Space> <Space><c-o>:call MapSpaceInMakefile()<CR>
+function! MapSpaceInMakefile()
+  " if this space is 8th space from the beginning of line, replace 8 spaces with
+  " one tab (only at the beginning of file)
+  let line = getline('.')
+  let col = col('.')
+  if strpart(line, 0, 8) == ' '
+    let new = "\t" . strpart(line,8)
+    call setline('.', new )
+  endif
+  return ""
+endfunction
+" }}} 
+
+
+
+" XML Hax {{{
+" http://vim.wikia.com/wiki/Vim_as_XML_Editor
+" I can't fathom why this isn't a default
+let g:xml_syntax_folding=1
+au FileType xml setlocal foldmethod=syntax
+"au FileType xml normal zR
+" }}}
