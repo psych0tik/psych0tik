@@ -1,0 +1,27 @@
+#!/bin/sh
+APP=$0
+
+usage()
+{
+    echo "$APP <source> <destination>"
+    exit 1
+}
+
+source=$1;
+if [ "$source" = "" ]; then
+    usage
+fi
+shift
+
+target=$1
+if [ "$target" = "" ]; then
+    usage
+fi
+shift
+
+echo -n "${target}: "
+rm -rI $target/*
+
+find $source -name \*.mp3 -exec _mv_mp3 {} $target \;
+
+

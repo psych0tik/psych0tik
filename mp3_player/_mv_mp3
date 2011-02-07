@@ -1,0 +1,29 @@
+#!/bin/sh
+usage()
+{
+    echo "usage: know what you're doing"
+    exit 1
+}
+
+gen_path()
+{
+    str=$(</dev/urandom tr -dc A-Za-z0-9 | head -c 8)
+    tmpath=$1/$str
+    while [ -e $tmpath ]; do
+        str=$(</dev/urandom tr -dc A-Za-z0-9 | head -c 8)
+        tmpath=$1/$str
+    done 
+    echo ${tmpath}.mp3
+}
+
+
+if [ "$1" = "" ]; then
+    usage
+fi
+
+if [ "$2" = "" ]; then
+    usage
+fi
+
+to=`gen_path $2`
+mv "$1" $to
