@@ -18,6 +18,12 @@
 import diff_file_maps
 import diff_user_maps
 
+import getpass
+
+user = diff_user_maps.user_map[getpass.getuser()]
+
+print user
+
 
 
 

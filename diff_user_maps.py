@@ -1,3 +1,4 @@
 user_map = {'richh': 'richo',
-            'richo': 'richo'}
+            'richo': 'richo',
+            'samurai': 'samurai'}
 
