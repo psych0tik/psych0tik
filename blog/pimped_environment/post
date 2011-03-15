@@ -1,0 +1,3 @@
+The next in a few posts I've written up is still about tweaking and playing, although this one culminates in how to pimp the bejeezus out of everything, and more importantly how best to manage these tweaks.
+
+I personally stack everything into an svn repo, which allows me to track changes in my home dir, catch revisions and most importantly share them between the machines I login to.
