@@ -1,0 +1,115 @@
+alias ducks='du -cks * | sort -rn | head -11'
+export CVSROOT=:pserver:richo@domino.ctc:/richo
+export EDITOR=$(which vim)
+export VISUAL=$(which vim)
+## XXX Should my path come first? In all likelyhood I want it to take precedence
+export PATH=$HOME/bin:$PATH
+export MAIL=imaps://mail.psych0tik.net
+export KEY=89E72415
+export EXCUSES_FILE=$HOME/code/storage/excuses
+export SLEEP_MUSIC="http://radio.psych0tik.net:8000/hax.ogg.m3u"
+export SLEEP_TIMEOUT=3600
+export WAKEUP_PATH="dragonforce..."
+export PYTHONPATH=$HOME/code/python/lib
+export PGUSER=$USER
+export MPD_HOST=domino.psych0tik.net
+
+
+# Configure my WM session
+
+for i in enlightenment_start openbox-session; do
+    #    ^ These must be in reverse order because the last assignment will persist
+    which $i > /dev/null && export RICHOWM=$i
+done
+
+for i in firefox iceweasel uzbl vimprobable2; do
+    #    ^ These must be in reverse order because the last assignment will persist
+    which $i > /dev/null && export BROWSER=$i
+done
+
+mesg n
+alias lynx="lynx -accept_all_cookies"
+alias ssl="openssl s_client -connect"
+alias wb=whichboom
+alias grep="grep --colour"
+alias svn_add_empty="svn add --depth empty"
+alias loneshell="setopt nosharehistory"
+alias xcp='xclip -selection clipboard'
+alias xcl='xclip'
+alias RR="restart_rails"
+alias ivlc="vlc -I ncurses"
+# Platform specific hax
+case `uname -s` in
+    "FreeBSD")
+        export PLATFORM="FREEBSD"
+        alias ls='ls -G'
+        alias ctags=exctags
+        ;;
+    "Linux")
+        export PLATFORM="LINUX"
+        alias ls='ls --color=auto'
+        ;;
+    *)
+        export PLATFORM="UNKNOWN"
+        ;;
+esac
+
+[ -f $HOME/.init_home_done ] || sh $HOME/.init_home
+
+# Hack for screen
+if [ -z $INSCREEN ]; then
+    ZSH_TIME="%T"
+else
+    ZSH_TIME=""
+fi
+
+function shdr()
+{ # changes screen title
+  # TODO - Screen command to pass this back to shell
+    # This would make Rumba hang, so only do for some TERMs:
+    if [ "$TERM" = "rxvt-unicode" -o "$TERM" = "rxvt-256color" ] ; then
+        #printf '\033]2;'$*'\07'
+        echo -ne "\033k$*\033\\"
+    fi
+}
+
+# Stole this mofo from teh samurai
+function wiki()
+{
+    dig +short txt $(echo $@ | sed -e 's/ /_/g').wp.dg.cx
+}
+#</Stoled>
+
+_RTITLE1=$(printf '\0cc]2;')
+_RTITLE2=$(printf '\07')
+RTITLE=${_RTITLE1}${SHELL}${_RTITLE2}
+
+alias sdig="dig +short"
+
+# I have nfi where this came from.. looks ok? Chase up.
+#SSHAGENT=/usr/bin/ssh-agent
+#SSHAGENTARGS="-s"
+#if [ -z "$SSH_AUTH_SOCK" -a -x "$SSHAGENT" ]; then
+#    eval `$SSHAGENT $SSHAGENTARGS`
+#    trap "kill $SSH_AGENT_PID" 0
+#fi
+export SHELL_COLOR=39
+
+# XXX TEMP
+# Is broked atm..
+if [ "$TERM" = "rxvt-unicode-256color" ]; then
+    export TERM="rxvt-256color"
+fi
+
+if [ "$TERM" = "rxvt-256color" -a $(hostname) = "richh-desktop" ]; then
+    #export TERM="rxvt-unicode"
+    alias ssh="TERM=rxvt-unicode ssh"
+fi
+
+# {{{ Git hackery
+
+alias gpull="git pull -- rebase"
+
+# }}}
+
+source ~/.profile.local

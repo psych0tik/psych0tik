@@ -1,0 +1,70 @@
+source ~/.profile
+zstyle :compinstall filename '/home/richo/.zshrc'
+autoload -U compinit promptinit
+compinit
+promptinit
+# Lines configured by zsh-newuser-install
+HISTFILE=~/.histfile
+HISTSIZE=1000
+SAVEHIST=1000
+bindkey -v
+# End of lines configured by zsh-newuser-install
+#PROMPT='%m %# '
+PROMPT=$(echo -e "%{\e[0;${SHELL_COLOR}m%}%B%m%b %{\e[0;34m%}%B%#%b%{\e[0m%} ")
+#PROMPT='\033_${USER}@${HOSTNAME%%.*}:${PWD/$HOME/~}\033\\'
+RPROMPT=$(echo -e "%{\e[0;34m%}%B%~ ${ZSH_TIME}%{\e[0m%}%b")
+setopt sharehistory
+setopt histignoredups
+bindkey '^R' history-incremental-search-backward
+
+function preexec()
+{ # {{{ Prexec hax
+    # TODO - Add all commands that shouldn't update title in here.
+    # XXX  - Have some STATIC keyword to make the title immutable.
+    # I think this should be in .zshrc..?
+    case $1 in
+        "ls"*|"cp"*|"mv"*|"cd"*|"echo"*|"wiki"*|"screen"*|"dig"*|"rm"*)
+            return ;;
+        # If we're doing it to everything, the command is more interesting than the target
+        *"\*")
+            arg=$(echo $1 | awk '{print $1}');;
+        # Catch kill early
+        "kill "*)
+            arg=$(echo $1 | awk '{print $NF}');;
+        "ctags"*|"killall"*|"screen"*)
+            return ;;
+        "man"*)
+            arg=$1;;
+        "./deploy.sh"*)
+            arg=$(echo $1 | sed -r -e 's/^\.\/deploy.sh/deploy:/' -e 's/114\.111\.139\.//' -e 's|/var/www/||g');;
+
+        # For Source control I want the whole line, I think...
+        "svn"*|"git"*|"hg"*|"cvs"*)
+            arg=$1;;
+
+        "make"*)
+            arg=$(pwd | grep -o "[^/]*/[^/]*$");;
+
+        # TODO Include host
+        "cap"*)
+            # hax
+            #arg=$(echo $1 | grep -o "(deploy[^ ]*)");;
+            arg=$(echo $1 | awk '{print $2}');;
+        
+        # Webby stuffs
+        "lynx"*|"links"*)
+            arg=$(echo $1 | sed -r -e 's/^(lynx|links) (http[s]?:\/\/)?(www\.)?//' -e 's/\/.*$//');;
+
+        "su"*)
+            arg="!root!";;
+        *)
+            arg=$(echo $1 | awk '{print $NF}');;
+    esac
+
+    if [ ! -z $INSCREEN ] ; then
+        #printf '\033]2;'$*'\07'
+        echo -ne "\033k$arg\033\\"
+    fi
+} # }}}
+
+[ -e $HOME/.zshrc.local ] && source $HOME/.zshrc.local

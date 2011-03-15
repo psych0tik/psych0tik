@@ -1,0 +1,41 @@
+Rxvt*foreground:White
+Rxvt*background:Black
+Rxvt*scrollBar:false
+Rxvt*saveLines:4000
+Rxvt*geometry:100x30
+Rxvt*font: xft:Bitstream Vera Sans Mono:size=8:antialias:true
+#Rxvt*font: xft:Terminus:pixelsize=12
+# TODO
+# I may be able to have Terminus back if I set up bold colors..?
+xterm*termName: xterm-256color
+xterm*foreground: white
+xterm*background: black
+Rxvt*perl-lib:         /usr/lib/uRxvt/perl/
+Rxvt*perl-ext-common:  default,matcher
+Rxvt*matcher.button:   1
+Rxvt*urlLauncher:      $BROWSER
+Rxvt.print-pipe: cat > $(TMPDIR=$HOME mktemp uRxvt.XXXXX)
+
+
+# COLORS HAX
+Rxvt*color0:    #000000
+Rxvt*color1:    #a80000
+Rxvt*color2:    #00a800
+Rxvt*color3:    #a8a800
+Rxvt*color4:    #0000a8
+Rxvt*color5:    #a800a8
+Rxvt*color6:    #00a8a8
+Rxvt*color7:    #a8a8a8
+
+Rxvt*color8:    #000054
+Rxvt*color9:    #ff0054
+Rxvt*color10:   #00ff54
+Rxvt*color11:   #ffff54
+Rxvt*color12:   #0000ff
+Rxvt*color13:   #ff00ff
+Rxvt*color14:   #00ffff
+Rxvt*color15:   #ffffff
+# Such an epic kludge.
+Rxvt*title:zsh
+
+Rxvt*iso14755: False
