@@ -50,7 +50,6 @@ pull_or_clone()
 pull_or_clone \
     psych0tik git@github.com:richoH/psych0tik.git           git\
     irssi-scripts git@github.com:shabble/irssi-scripts.git  git\
-    bdhq git@github.com:boxdice/bdhq.git                    git\
     vimprobable git@github.com:richoH/vimprobable.git       git\
     tabbed http://hg.suckless.org/tabbed                    hg\
     openbox natalya.psych0tik.net:git/openbox.git           git\
