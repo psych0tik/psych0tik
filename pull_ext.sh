@@ -26,19 +26,24 @@ pull_or_clone()
         RCS="$1"; shift
 
         # Define RCS Data:
-        if [ $RCS = "svn" ]; then
+        case $RCS in
+        "svn")
             CHECKOUT=checkout
             PULL=update
-        elif [ $RCS = "git" ]; then
+            ;;
+        "git")
             CHECKOUT=clone
             PULL=pull
-        elif [ $RCS = "hg" ]; then
+            ;;
+        "hg")
             CHECKOUT=clone
             PULL=pull
-        else
+            ;;
+        *)
             echo "Broken RCS @ $IPATH"
             continue
-        fi
+            ;;
+        esac
 
         COPATH="$GITPATH"/"$IPATH"
 
