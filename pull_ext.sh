@@ -33,7 +33,7 @@ pull_or_clone()
             ;;
         "git")
             CHECKOUT=clone
-            PULL=pull
+            PULL=pull\ --all
             ;;
         "hg")
             CHECKOUT=clone
