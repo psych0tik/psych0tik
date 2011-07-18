@@ -4,27 +4,43 @@ import os
 import sys
 import subprocess
 import argparse
+import re
 sp = subprocess
 
 parser = argparse.ArgumentParser(description="Parse and display tmux info data")
 # Make this the default args I Think
-parser.add_argument('search', metavar='search terms', action='store', 
+parser.add_argument('search', metavar='search terms', action='store',
         default=None, nargs='*',
         help="Search for <string> in window names")
-parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', 
+parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
         default=False,
         help="Enable verbose reporting (show full data)")
-parser.add_argument('-a', '--attach', dest='attach', action='store_true', 
+parser.add_argument('-a', '--attach', dest='attach', action='store_true',
         default=False,
         help="Attach to the session, if your search results only return one")
-parser.add_argument('-p', '--pty', dest='searchpty', action='store', 
+parser.add_argument('-p', '--pty', dest='searchpty', action='store',
         default=None,
         help="Search for a given {p,t}ty amongst those owned by windows")
+parser.add_argument('-r', '--reattach', dest='reattach', action='store_true',
+        default=None,
+        help="Reattach to the first session we find that's detached")
+parser.add_argument('-R', '--hard-attach', dest='hardtach', action='store_true',
+        default=None,
+        help="Do what we've got to do to get a session")
+parser.add_argument('-f', '--force', dest='force', action='store_true',
+        default=False,
+        help="Force any action which normally refuses")
 
 class TMuxInfo(object):
     """This is the master class that will replace our broken toplevel"""
-    def get_session_id_somehow(self):
-        return "59"
+    sess_ind5_re = re.compile("\s*(\d+): (.*) (\d+) (\d+) (\d+)/(\d+), (\d+) bytes; (.*) (\d+)/(\d+), (\d+) bytes")
+    sess_ind5_keys = ('paneno', 'pty', 'dump', 'dump', 'dump', 'dump', 'dump', 'encoding', 'dump', 'dump')
+    sess_ind3_re = re.compile("\s*(\d+): (.*) \[(\d+)x(\d+)\] \[flags=(.*), references=(\d+), last layout=(.*)\]")
+    sess_ind3_keys = ('winno', 'name', 'sizex', 'sizey', 'flags', 'references', 'last_layout')
+    sess_header_re = re.compile("\s*(\d+): \d+: (\d+) windows \(created (.*)\) \[(\d+)x(\d+)\] \[flags=(.*)\]")
+    sess_header_keys = ('sessno', 'nowins', 'created', 'sizex', 'sizey', 'flags')
+    client_ind1_re = re.compile('\s*(\d+): (.*) \(\d+, \d+\): (\d+) \[(\d+)x(\d+) (.*)\] \[flags=(.*), references=(.*)]')
+    client_ind1_keys = ('idx', 'pty', 'sessno', 'sizex', 'sizey', 'term', 'flags', 'references')
     def __init__(self, ph=None):
         self.handlers = { "Clients": self.handle_clients,
                  "Sessions": self.handle_sessions }
@@ -39,23 +55,14 @@ class TMuxInfo(object):
             self.ph = Watcher(ph)
     def out(self, msg):
         print >>self.output, msg
-
-    @staticmethod
-    def parse_client_ind1(line): # {{{
+    
+    def parse_client_ind1(self, line): # {{{
         dat = Data()
-        parts = line.split(" ")
-        dat.idx = parts[0]
-        dat.idx = dat.idx.replace(":", "")
-        dat.pty = parts[1]
-        dat.sizex, dat.sizey = map(int, 
-                (parts[2][1:-1], parts[3][:-2]))
-        dat.sessno = parts[4]
-        dat.size = parts[5][1:]
-        dat.term = parts[6][:-1]
-        dat.extra = " ".join((parts[7], parts[8]))
+        for key, val in zip(self.client_ind1_keys, self.client_ind1_re.match(line).groups()):
+            setattr(dat, key, val)
         return dat
     #}}}
-
+    
     def build(self):
         while self.ph:
             if self.ph.line == os.linesep:
@@ -73,7 +80,13 @@ class TMuxInfo(object):
                 # is done.. Wait it hink they'll consume a line finding
                 # the "\n" ????
                 self.ph.next()
-
+        # Mark those that are detached as such
+        for i in self.clients:
+            try:
+                self.sessions[i].detached = False
+            except IndexError:
+                continue
+    
     def handle_clients(self, h):
         data = {}
         while h.next() != os.linesep:
@@ -85,36 +98,26 @@ class TMuxInfo(object):
                 except KeyError:
                     data[client.sessno] = [Client(client)]
         self.clients = data
-
+    
     def parse_session_header(self, line): # {{{
-        # TODO port to new api
         dat = Data()
-        dat.sessno, dat.sessno, dat.nowins, dat.dump = line.split(" ", 3)
-        dat.sessno = dat.sessno.replace(":", "")
+        for key, val in zip(self.sess_header_keys, self.sess_header_re.match(line).groups()):
+            setattr(dat, key, val)
         return dat
     #}}}
     def parse_session_ind3(self, line): # {{{
         dat = Data()
-        parts = line.split(" ")
-        dat.winno = parts[0].replace(":", "")
-        ind = 1
-        while not _looks_like_size(parts[ind]):
-            ind += 1
-        dat.name = ' '.join(parts[1:ind])
-        dat.sizex, dat.sizey = map(int, 
-                parts[ind][1:-1].split("x"))
-        dat.extra = " ".join(parts[ind+1:])
+        for key, val in zip(self.sess_ind3_keys, self.sess_ind3_re.match(line).groups()):
+            setattr(dat, key, val)
         return dat
     #}}}
     def parse_session_ind5(self, line): # {{{
         dat = Data()
-        parts = line.split(" ")
-        dat.paneno = parts[0].replace(":", "")
-        dat.pty = parts[1]
-        dat.extra = ' '.join(parts[2:])
+        for key, val in zip(self.sess_ind5_keys, self.sess_ind5_re.match(line).groups()):
+            setattr(dat, key, val)
         return dat
     #}}}
-
+    
     def handle_sessions(self, h):
         data = {}
         while h.next() != os.linesep:
@@ -134,7 +137,7 @@ class TMuxInfo(object):
         self.sessions = data
     def count_sessions(self):
         return len(self.sessions)
-
+    
     def dump(self):
         s = self.sessions
         c = self.clients
@@ -143,12 +146,19 @@ class TMuxInfo(object):
                 # TODO Work out verbose mode.. multiline?
                 self.out("Session %s: %s" % (i,
                     " ".join([self.dump_func(n) for n in c[ival.sessno]])))
-            else:
+            elif ival.detached:
                 self.out("Session %s: [Detached]" % (i))
+            else:
+                self.out("Wierd broken session: %s" % (i))
             keys = ival.wins.keys()
             keys.sort()
             for j in keys:
                 self.out("%s: %s" % (j, self.dump_func(ival.wins[j])))
+    def filter(self, attr, key, value):
+        for i in getattr(self, attr):
+            if getattr(i, key) != value:
+                # Dump that item
+                pass
     def search(self, searchTerm, field='name'):
         s = self.sessions
         c = self.clients
@@ -175,9 +185,16 @@ class TMuxInfo(object):
             if not ival.is_empty():
                 valid_sessions[i] = ival
         self.sessions = valid_sessions
+    def get_session_ids(self):
+        return [i for i in self.sessions]
+
+
 
 def _looks_like_size(l):
-    return l[0] == "[" and l[-1] == "]"
+    if l:
+        return l[0] == "[" and l[-1] == "]"
+    else:
+        return False
 def dump(obj):
     return obj.__dump__()
 def dump_verbose(obj):
@@ -191,6 +208,20 @@ def get_indent(line):
     return c, line[c:]
 
 class Data(object):
+    type_mapping = {'sessno': int,
+                    'winno': int,
+                    'paneno': int,
+                    'sizex': int,
+                    'sizey': int,
+                    'references': int,
+                    'idx': int,
+                    'panes': int,
+                    'pty': str}
+    def __setattr__(self, key, value):
+        if key in self.type_mapping:
+            dict.__setattr__(self, key, self.type_mapping[key](value))
+        else:
+            dict.__setattr__(self, key, value)
     def iteritems(self):
         return self.__dict__.iteritems()
     def __repr__(self):
@@ -205,6 +236,7 @@ class IndexData(object):
 class Session(IndexData):
     def __init__(self, *args):
         self.wins = {}
+        self.detached = True
         IndexData.__init__(self, *args)
     def add_win(self, dat):
         self.wins[dat.winno] = Win(dat)
@@ -219,6 +251,14 @@ class Session(IndexData):
         """Primarily debugging"""
         return "%s: %s" % (self.sessno, repr(self.wins))
 
+def plural(noun, count):
+    if count > 1:
+        if noun[-1] == "y":
+            noun = noun[:-1] + "ie"
+        return noun + "s"
+    else:
+        return noun
+
 class Win(IndexData):
     def __init__(self, *args):
         self.panes = []
@@ -228,24 +268,24 @@ class Win(IndexData):
         """Primarily debugging"""
         info = [self.name]
         if self.panes > 1:
-            info.append("(%i panes) %s" % (len(self.panes), self.pty))
+            info.append("(%i %s) %s" % (len(self.panes), plural("pane", len(self.panes)), self.pty))
         return " ".join(info)
     def add_pane(self, dat):
         self.panes.append(Pane(dat))
         self.pty = ' '.join([i.pty for i in self.panes])
     def __dump_verbose__(self):
-        return "%s [%ix%i] %s (%i panes) containing %s" % (
+        return "%s [%sx%s] (%i panes) containing %s" % (
                 self.name, self.sizex, self.sizey,
-                self.extra, len(self.panes), self.pty)
+                len(self.panes), self.pty)
 
 class Client(IndexData):
     def __repr__(self):
         """Primarily debugging"""
         return "%s" % (self.pty)
     def __dump_verbose__(self):
-        return "%s%s-> %s [%ix%i] [%s] %s" % ( os.linesep,
+        return "%s%s-> %s [%sx%s] [%s]" % ( os.linesep,
                 self.pty, self.idx, self.sizex, self.sizey,
-                self.term, self.extra.replace(os.linesep, ""))
+                self.term)
 
 class Pane(IndexData):
     pass
@@ -274,9 +314,16 @@ def throw_error(msg):
     print >>sys.stderr, msg
     exit()
 
+def searched(args):
+    # TODO Expand
+    return args.search or args.searchpty
+
 def check_args(args):
-    if args.attach and not args.search:
+    if args.attach and not searched(args):
         throw_error("You cannot attach without searching")
+    if args.reattach:
+        args.attach = True
+        args.force = True
 
 def main():
     args = parser.parse_args()
@@ -290,15 +337,18 @@ def main():
     tinfo.build()
     if args.search:
         tinfo.search(' '.join(args.search))
+    if args.reattach:
+        tinfo.filter('sessions', 'detached', 'True')
     if args.searchpty:
         tinfo.search(args.searchpty, field='pty')
     if args.attach:
-        if tinfo.count_sessions() != 1:
+        session_ids = tinfo.get_session_ids()
+        if len(session_ids) != 1 and not args.force:
             throw_error("You must have exactly one result to attach (%i found)"
                     % (tinfo.count_sessions()))
         else:
-            os.execvpe('tmux', ('tmux', 'a', '-t',
-                tinfo.get_session_id_somehow()), os.environ)
+            for i in session_ids:
+                os.execvpe('tmux', ('tmux', 'a', '-t', str(i)), os.environ)
     else:
         tinfo.dump()
 
