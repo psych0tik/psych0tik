@@ -1,6 +1,22 @@
 #!/bin/sh
 CWD=`pwd`
-GITPATH="$(dirname "$0")"/ext
+SCRPATH=`pwd`
+
+if [ -e .svn ]; then
+    svn update
+    # TODO - on update, exec $0 $@
+fi
+
+. $SCRPATH/.pull_data
+if [ -z "$data" ]; then
+    echo "Data file does not define \$data"
+    exit
+fi
+if [ -z "$GITPATH" ]; then
+    echo "Data file does not define \$GITPATH"
+    exit
+fi
+
 
 pull_or_clone() 
     while [ $# -ge 2 ]; do
@@ -41,17 +57,12 @@ pull_or_clone()
                 ./__update.sh
             fi
         fi
+        if [ -e .pull_data ]; then
+            echo "Pulling externals in: $(pwd)"
+            pull_ext
+        fi
+
         cd "$CWD"
     done
 
-
-    # Move the referenced apps into an include file so that diff_ and pull_ can both
-    # Access them
-pull_or_clone \
-    psych0tik git@github.com:richoH/psych0tik.git           git\
-    irssi-scripts git@github.com:shabble/irssi-scripts.git  git\
-    vimprobable git@github.com:richoH/vimprobable.git       git\
-    tabbed http://hg.suckless.org/tabbed                    hg\
-    openbox natalya.psych0tik.net:git/openbox.git           git\
-    hbh     richo@hellboundhackers.org/var/svn              svn\
-    fugitive    git://github.com/tpope/vim-fugitive.git     git
+pull_or_clone $data
